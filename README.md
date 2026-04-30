@@ -2,6 +2,8 @@
 
 A FreeRTOS-based CubeSat On-Board Computer (OBC) simulator running on an ESP32, implementing a CCSDS-inspired telemetry/telecommand (TM/TC) protocol stack over USB serial with a Raspberry Pi 3B acting as ground station. The system reads live sensor data from a DHT11 (temperature/humidity) and MPU6050 IMU, builds structured 32-byte binary telemetry packets with CRC16-CCITT integrity checking, manages a four-mode satellite state machine, and runs a software watchdog that monitors task liveness and downlinks fault flags in every packet. A Flask + SocketIO web dashboard on the Raspberry Pi provides real-time telemetry display and TC uplink — the full ground-to-space link in miniature.
 
+<img width="1800" height="1014" alt="Screenshot 2026-04-30 at 9 46 15 PM" src="https://github.com/user-attachments/assets/d571c2c8-2a91-4982-9dd9-50facdebb717" />
+
 ---
 
 ## System Overview
