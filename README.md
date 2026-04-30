@@ -287,7 +287,7 @@ Earlier prototypes used `Serial.printf` for all output. This created a fundament
 
 ## What I Learned / Context
 
-This project was built as a portfolio piece for applications to MSc Aerospace Informatics at Julius-Maximilians-Universität Würzburg, specifically to demonstrate embedded systems and spacecraft software engineering competence before formal graduate study. The goal was to go beyond blinking LEDs and actually implement the kind of system architecture — tasking, IPC, protocol framing, fault detection — that appears in real OBC software like NASA cFS or ESA's OBSW reference implementations.
+This project was built as a portfolio piece, specifically to demonstrate embedded systems and spacecraft software engineering competence. The goal was to go beyond blinking LEDs and actually implement the kind of system architecture — tasking, IPC, protocol framing, fault detection — that appears in real OBC software like NASA cFS or ESA's OBSW reference implementations.
 
 The project started on a NodeMCU V3 (ESP8266). That choice lasted about one afternoon: the ESP8266 Arduino core uses the Non-OS SDK and does not expose FreeRTOS headers to sketch code. Migrating to ESP32 resolved this, but introduced its own surprises — stack canary crashes traced back to `STACK_SIZE = 2048` (the DHT library's `Serial.printf` with float formatting exhausts this), and the DS1307 RTC silently reading garbage until I realised it requires 5 V on VCC, not 3.3 V, and a 1000 ms stabilisation delay after `Wire.begin()`. The MPU6050 and DS1307 share the I²C bus at addresses `0x69` and `0x68` respectively — the AD0 pin on the MPU6050 must be pulled HIGH to avoid a collision. These are the kinds of details that only appear in datasheets, not tutorials.
 
