@@ -1,0 +1,63 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.eggs/
+pip-wheel-metadata/
+
+# Virtual environments
+venv/
+env/
+.env/
+.venv/
+
+# Environment variables / secrets
+.env
+*.env
+secrets.py
+
+# Flask
+instance/
+.webassets-cache
+flask_session/
+
+# Ground station runtime
+ground_station/__pycache__/
+ground_station/*.pyc
+
+# Arduino / IDE
+*.ino.elf
+*.ino.bin
+*.ino.map
+build/
+*.DS_Store
+.DS_Store
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.Spotlight-V3
+.Trashes
+.fseventsd
+
+# VS Code / editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+ground_station/logs/
+
+# CLAUDE.md — internal development context file, not needed publicly
+CLAUDE.md

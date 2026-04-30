@@ -1,0 +1,980 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TELESAT-1 Ground Station</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: #000;
+  overflow: hidden;
+  font-family: 'Courier New', Courier, monospace;
+  color: #c0d0d8;
+}
+
+#bg-canvas {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100vw; height: 100vh;
+  z-index: 0;
+}
+
+#ui {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100vw; height: 100vh;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Header ── */
+#header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  height: 46px;
+  background: rgba(0,0,0,0.88);
+  border-bottom: 1px solid rgba(0,152,170,0.18);
+  flex-shrink: 0;
+}
+
+.hdr-left {
+  color: rgba(0,162,180,0.82);
+  font-size: 11px;
+  letter-spacing: 0.25em;
+}
+
+.hdr-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  line-height: 1;
+}
+
+.hdr-met-label {
+  color: rgba(0,152,170,0.5);
+  font-size: 8px;
+  letter-spacing: 0.25em;
+}
+
+@keyframes met-blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
+}
+
+#met-value {
+  color: #fff;
+  font-size: 26px;
+  letter-spacing: 0.13em;
+  animation: met-blink 1s steps(1) infinite;
+}
+
+.hdr-right {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.link-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.link-dot.ok  { background: #00cc54; box-shadow: 0 0 5px #00cc54; }
+.link-dot.err { background: #cc2200; }
+
+#link-text {
+  font-size: 10px;
+  letter-spacing: 0.15em;
+  color: rgba(0,200,100,0.75);
+}
+
+#link-text.err { color: rgba(220,50,30,0.8); }
+
+/* ── Main grid ── */
+#main-grid {
+  flex: 1;
+  display: flex;
+  gap: 1px;
+  background: rgba(0,148,168,0.12);
+  overflow: hidden;
+  min-height: 0;
+}
+
+.panel {
+  background: rgba(0,0,3,0.88);
+  clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 0 100%);
+  padding: 16px;
+  overflow: hidden;
+}
+
+#left-panel {
+  width: 180px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+#center-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.env-section {
+  flex: 0 0 auto;
+}
+
+.imu-section {
+  flex: 1;
+  min-height: 0;
+}
+
+#right-panel {
+  width: 220px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.section-label {
+  font-size: 8px;
+  letter-spacing: 0.3em;
+  color: rgba(0,162,180,0.75);
+  border-bottom: 1px solid rgba(0,152,170,0.18);
+  padding-bottom: 5px;
+  margin-bottom: 9px;
+  text-transform: uppercase;
+}
+
+/* ── Left panel ── */
+.mode-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 10px;
+}
+
+.mode-led {
+  width: 9px;
+  height: 9px;
+  border-radius: 1px;
+  flex-shrink: 0;
+  background: #c89400;
+}
+
+#mode-text {
+  font-size: 12px;
+  color: #eddca0;
+  letter-spacing: 0.08em;
+}
+
+.stat-row {
+  margin-bottom: 7px;
+}
+
+.stat-label {
+  font-size: 8px;
+  color: rgba(0,152,170,0.55);
+  letter-spacing: 0.2em;
+  margin-bottom: 1px;
+}
+
+.stat-value {
+  font-size: 11px;
+  color: #b0c8d4;
+}
+
+#pkt-count-value {
+  font-size: 24px;
+  color: #00b8cc;
+  letter-spacing: 0.05em;
+}
+
+.fault-section { margin-top: 8px; }
+
+.fault-table {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 5px;
+  margin-bottom: 10px;
+}
+
+.fault-row-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.fault-name {
+  font-size: 8px;
+  color: rgba(0,152,170,0.55);
+  letter-spacing: 0.15em;
+}
+
+.fault-badge {
+  font-size: 7px;
+  letter-spacing: 0.1em;
+  padding: 2px 8px;
+  border-radius: 1px;
+  transition: background 0.2s, color 0.2s;
+}
+
+.fault-badge.ok {
+  color: rgba(0,200,84,0.85);
+  background: rgba(0,200,84,0.04);
+  border: 1px solid rgba(0,200,84,0.18);
+}
+
+@keyframes fault-blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.3; }
+}
+
+.fault-badge.err {
+  color: #ff3818;
+  background: rgba(200,30,10,0.08);
+  border: 1px solid rgba(200,30,10,0.5);
+  animation: fault-blink 0.8s steps(1) infinite;
+}
+
+.wdg-box {
+  font-size: 8px;
+  letter-spacing: 0.08em;
+  border-radius: 1px;
+  padding: 4px 5px 4px 6px;
+}
+
+.wdg-ok {
+  color: rgba(0,200,84,0.75);
+  background: rgba(0,200,84,0.04);
+  border: 1px solid rgba(0,200,84,0.12);
+  border-left: 2px solid rgba(0,200,84,0.3);
+}
+
+.wdg-fault {
+  color: #ff4c1e;
+  background: rgba(200,40,10,0.06);
+  border: 1px solid rgba(200,40,10,0.35);
+  border-left: 2px solid rgba(200,40,10,0.5);
+}
+
+/* ── Center panel ── */
+.env-values {
+  display: flex;
+  gap: 28px;
+  margin-top: 4px;
+}
+
+.env-block .env-label {
+  font-size: 8px;
+  color: rgba(0,152,170,0.55);
+  letter-spacing: 0.2em;
+  margin-bottom: 1px;
+}
+
+.env-number {
+  font-size: 34px;
+  color: #fff;
+}
+
+.env-unit {
+  font-size: 11px;
+  color: #00b0c8;
+  margin-left: 2px;
+}
+
+.imu-subsection {
+  margin-bottom: 7px;
+}
+
+.imu-sub-label {
+  font-size: 8px;
+  color: rgba(0,152,170,0.45);
+  letter-spacing: 0.2em;
+  margin-bottom: 4px;
+}
+
+.imu-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 6px;
+}
+
+.imu-cell {
+  background: rgba(0,0,6,0.55);
+  clip-path: polygon(0 0, calc(100% - 4px) 0, 100% 4px, 100% 100%, 0 100%);
+  border: 1px solid rgba(0,152,170,0.1);
+  padding: 5px 6px;
+}
+
+.imu-axis {
+  font-size: 7px;
+  color: rgba(0,162,180,0.55);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin-bottom: 2px;
+}
+
+.imu-val {
+  font-size: 13px;
+  color: #9ac0cc;
+}
+
+.trend {
+  font-size: 13px;
+  margin-left: 2px;
+}
+
+.trend-up { color: #00cc54; }
+.trend-dn { color: #ff4c1e; }
+.trend-st { color: rgba(100,140,150,0.45); }
+
+/* ── Right panel ── */
+#pkt-log {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+#pkt-log::-webkit-scrollbar { width: 3px; }
+#pkt-log::-webkit-scrollbar-track { background: transparent; }
+#pkt-log::-webkit-scrollbar-thumb { background: rgba(0,152,170,0.2); }
+
+@keyframes slide-in {
+  from { opacity: 0; transform: translateY(-5px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.pkt-entry {
+  margin-bottom: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(0,152,170,0.06);
+  animation: slide-in 0.18s ease;
+}
+
+.pkt-header {
+  font-size: 10px;
+  color: #6292aa;
+  margin-bottom: 1px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pkt-seq  { color: #00b0c8; }
+.pkt-ts   { color: rgba(130,170,190,0.8); }
+.pkt-temp { color: rgba(180,220,190,0.75); }
+.pkt-hum  { color: rgba(140,195,215,0.75); }
+.pkt-mode { color: rgba(170,195,155,0.75); }
+
+.pkt-sep {
+  height: 1px;
+  background: rgba(0,152,170,0.08);
+  margin: 3px 0;
+}
+
+.pkt-hex {
+  font-size: 8px;
+  color: rgba(48,95,128,0.45);
+  background: rgba(0,0,8,0.5);
+  padding: 3px 6px;
+  word-break: break-all;
+  line-height: 1.5;
+}
+
+.log-msg {
+  font-size: 9px;
+  color: rgba(0,188,88,0.5);
+  margin-bottom: 5px;
+  animation: slide-in 0.18s ease;
+}
+
+/* ── Command bar ── */
+#cmd-bar {
+  display: flex;
+  gap: 1px;
+  flex-shrink: 0;
+  background: rgba(0,148,168,0.08);
+}
+
+.cmd-btn {
+  flex: 1;
+  padding: 12px 3px;
+  background: rgba(0,0,4,0.94);
+  border: none;
+  border-top: 1px solid;
+  cursor: pointer;
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 8.5px;
+  letter-spacing: 0.1em;
+  text-align: center;
+  text-transform: uppercase;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  transition: filter 0.12s;
+}
+
+.cmd-btn:hover { filter: brightness(1.35); }
+.cmd-btn:active { filter: brightness(0.8); }
+
+.btn-sub {
+  font-size: 7px;
+  opacity: 0.55;
+  letter-spacing: 0.05em;
+}
+
+.btn-ping {
+  color: rgba(0,172,192,0.5);
+  border-top-color: rgba(0,172,192,0.15);
+}
+
+.btn-safe {
+  color: rgba(192,148,0,0.52);
+  border-top-color: rgba(192,148,0,0.18);
+}
+
+.btn-nom {
+  color: rgba(0,152,172,0.5);
+  border-top-color: rgba(0,152,172,0.15);
+}
+
+.btn-nom.active {
+  background: rgba(0,185,76,0.05);
+  color: #00cc5e;
+  border-top-color: rgba(0,185,76,0.25);
+}
+
+.btn-diag {
+  color: rgba(192,148,0,0.52);
+  border-top-color: rgba(192,148,0,0.18);
+}
+
+.btn-clr {
+  color: rgba(192,44,28,0.48);
+  border-top-color: rgba(192,44,28,0.15);
+}
+
+.btn-reset {
+  color: rgba(192,44,28,0.48);
+  border-top-color: rgba(192,44,28,0.15);
+}
+
+/* ── Footer ── */
+#footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 12px;
+  height: 22px;
+  flex-shrink: 0;
+  background: rgba(0,0,3,0.92);
+  border-top: 1px solid rgba(0,145,165,0.1);
+  font-size: 7px;
+  color: rgba(0,152,170,0.38);
+  letter-spacing: 0.1em;
+}
+</style>
+</head>
+<body>
+
+<canvas id="bg-canvas"></canvas>
+
+<div id="ui">
+
+  <!-- Header -->
+  <div id="header">
+    <span class="hdr-left">TELESAT-1 / OBC TELEMETRY</span>
+    <div class="hdr-center">
+      <span class="hdr-met-label">MET</span>
+      <span id="met-value">00:00:00</span>
+    </div>
+    <div class="hdr-right">
+      <div class="link-dot ok" id="link-dot"></div>
+      <span id="link-text">LINK NOMINAL</span>
+    </div>
+  </div>
+
+  <!-- Main grid -->
+  <div id="main-grid">
+
+    <!-- Left: Satellite Status -->
+    <div class="panel" id="left-panel">
+      <div class="section-label">Satellite Status</div>
+
+      <div class="mode-row">
+        <div class="mode-led" id="mode-led"></div>
+        <span id="mode-text">SAFE</span>
+      </div>
+
+      <div class="stat-row">
+        <div class="stat-label">PKT COUNT</div>
+        <div id="pkt-count-value">0</div>
+      </div>
+      <div class="stat-row">
+        <div class="stat-label">SEQ</div>
+        <div class="stat-value" id="seq-value">—</div>
+      </div>
+      <div class="stat-row">
+        <div class="stat-label">TIMESTAMP</div>
+        <div class="stat-value" id="ts-value">—</div>
+      </div>
+
+      <div class="fault-section">
+        <div class="stat-label">FAULT FLAGS</div>
+        <div class="fault-table">
+          <div class="fault-row-item">
+            <span class="fault-name">DHT</span>
+            <span class="fault-badge ok" id="fault-dht">CLR</span>
+          </div>
+          <div class="fault-row-item">
+            <span class="fault-name">IMU</span>
+            <span class="fault-badge ok" id="fault-imu">CLR</span>
+          </div>
+          <div class="fault-row-item">
+            <span class="fault-name">WDG</span>
+            <span class="fault-badge ok" id="fault-wdg">CLR</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="stat-label">WATCHDOG</div>
+      <div class="wdg-box wdg-ok" id="wdg-status">ALL TASKS HEALTHY</div>
+    </div>
+
+    <!-- Center: Environmental + IMU -->
+    <div id="center-panel">
+      <div class="panel env-section">
+        <div class="section-label">Environmental</div>
+        <div class="env-values">
+          <div class="env-block">
+            <div class="env-label">TEMPERATURE</div>
+            <span class="env-number" id="temp-value">—</span><span class="env-unit">°C</span>
+          </div>
+          <div class="env-block">
+            <div class="env-label">HUMIDITY</div>
+            <span class="env-number" id="hum-value">—</span><span class="env-unit">%</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel imu-section">
+        <div class="section-label">Inertial Measurement</div>
+        <div class="imu-subsection">
+          <div class="imu-sub-label">ACCELEROMETER</div>
+          <div class="imu-grid">
+            <div class="imu-cell">
+              <div class="imu-axis">ACCEL X</div>
+              <span class="imu-val" id="ax-val">—</span><span class="trend trend-st" id="ax-trend">→</span>
+            </div>
+            <div class="imu-cell">
+              <div class="imu-axis">ACCEL Y</div>
+              <span class="imu-val" id="ay-val">—</span><span class="trend trend-st" id="ay-trend">→</span>
+            </div>
+            <div class="imu-cell">
+              <div class="imu-axis">ACCEL Z</div>
+              <span class="imu-val" id="az-val">—</span><span class="trend trend-st" id="az-trend">→</span>
+            </div>
+          </div>
+        </div>
+        <div class="imu-subsection">
+          <div class="imu-sub-label">GYROSCOPE</div>
+          <div class="imu-grid">
+            <div class="imu-cell">
+              <div class="imu-axis">GYRO X</div>
+              <span class="imu-val" id="gx-val">—</span><span class="trend trend-st" id="gx-trend">→</span>
+            </div>
+            <div class="imu-cell">
+              <div class="imu-axis">GYRO Y</div>
+              <span class="imu-val" id="gy-val">—</span><span class="trend trend-st" id="gy-trend">→</span>
+            </div>
+            <div class="imu-cell">
+              <div class="imu-axis">GYRO Z</div>
+              <span class="imu-val" id="gz-val">—</span><span class="trend trend-st" id="gz-trend">→</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right: TM Packet Stream -->
+    <div class="panel" id="right-panel">
+      <div class="section-label">TM Packet Stream</div>
+      <div id="pkt-log"></div>
+    </div>
+
+  </div><!-- /main-grid -->
+
+  <!-- Command bar -->
+  <div id="cmd-bar">
+    <button class="cmd-btn btn-ping"  onclick="sendCmd('PING')">
+      <span>CMD_PING</span><span class="btn-sub">query</span>
+    </button>
+    <button class="cmd-btn btn-safe"  onclick="sendCmd('MODE_SAFE')">
+      <span>MODE_SAFE</span><span class="btn-sub">amber</span>
+    </button>
+    <button class="cmd-btn btn-nom"   onclick="sendCmd('MODE_NOM')" id="btn-nom">
+      <span>MODE_NOM</span><span class="btn-sub">active</span>
+    </button>
+    <button class="cmd-btn btn-diag"  onclick="sendCmd('MODE_DIAG')">
+      <span>MODE_DIAG</span><span class="btn-sub">amber</span>
+    </button>
+    <button class="cmd-btn btn-clr"   onclick="sendCmd('CLR_FAULT')">
+      <span>CLR_FAULT</span><span class="btn-sub">confirm</span>
+    </button>
+    <button class="cmd-btn btn-reset" onclick="sendCmd('RESET')">
+      <span>CMD_RESET</span><span class="btn-sub">destruct.</span>
+    </button>
+  </div>
+
+  <!-- Footer -->
+  <div id="footer">
+    <span>TELESAT-1 // ESP32 FREERTOS OBC // CCSDS TM/TC // CRC16-CCITT</span>
+    <span>LAST CRC: <span id="last-crc">——</span></span>
+  </div>
+
+</div><!-- /ui -->
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
+<script>
+// ─── Canvas background: Earth + space scene ───────────────────────────────
+function drawScene() {
+  const canvas = document.getElementById('bg-canvas');
+  const ctx    = canvas.getContext('2d');
+  canvas.width  = window.innerWidth;
+  canvas.height = window.innerHeight;
+  const W = canvas.width;
+  const H = canvas.height;
+
+  // 1. Pure black background
+  ctx.fillStyle = '#000000';
+  ctx.fillRect(0, 0, W, H);
+
+  // 2. Stars — ~200 dots, noticeably denser in upper-right quadrant
+  for (let i = 0; i < 210; i++) {
+    let sx, sy;
+    if (i < 88) {
+      // Upper-right quadrant bias
+      sx = W * 0.48 + Math.random() * W * 0.52;
+      sy = Math.random() * H * 0.52;
+    } else {
+      sx = Math.random() * W;
+      sy = Math.random() * H;
+    }
+    const sr    = Math.random() < 0.06 ? 1.5 : (Math.random() < 0.22 ? 0.9 : 0.5);
+    const alpha = 0.3 + Math.random() * 0.7;
+    ctx.beginPath();
+    ctx.arc(sx, sy, sr, 0, Math.PI * 2);
+    ctx.fillStyle = Math.random() < 0.28
+      ? `rgba(188,212,255,${alpha})`   // blue-white
+      : `rgba(255,255,255,${alpha})`;  // pure white
+    ctx.fill();
+  }
+
+  // 3. Earth geometry
+  // Center placed far lower-left so only the upper arc is visible in-viewport
+  const ecx = W * -0.05;
+  const ecy = H *  1.05;
+  const er  = W *  0.55;
+
+  // Earth fill — radial gradient, lit from upper inner area
+  const litX = ecx + er * 0.22;
+  const litY = ecy - er * 0.58;
+  const eg = ctx.createRadialGradient(litX, litY, er * 0.04, ecx, ecy, er);
+  eg.addColorStop(0,    '#2280be');
+  eg.addColorStop(0.42, '#0d3d65');
+  eg.addColorStop(1,    '#061e38');
+  ctx.beginPath();
+  ctx.arc(ecx, ecy, er, 0, Math.PI * 2);
+  ctx.fillStyle = eg;
+  ctx.fill();
+
+  // Subtle inner limb haze inside Earth
+  const ig = ctx.createRadialGradient(ecx, ecy, er * 0.80, ecx, ecy, er);
+  ig.addColorStop(0, 'rgba(0,0,0,0)');
+  ig.addColorStop(1, 'rgba(18,72,145,0.26)');
+  ctx.beginPath();
+  ctx.arc(ecx, ecy, er, 0, Math.PI * 2);
+  ctx.fillStyle = ig;
+  ctx.fill();
+
+  // 4. Land masses and cloud wisps — clipped to Earth disc
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(ecx, ecy, er * 0.9985, 0, Math.PI * 2);
+  ctx.clip();
+
+  // Helper: point on Earth surface at given angle (degrees) and radial fraction
+  function earthPt(angDeg, rFrac) {
+    const a = angDeg * Math.PI / 180;
+    return { x: ecx + er * rFrac * Math.cos(a), y: ecy + er * rFrac * Math.sin(a) };
+  }
+
+  // Land mass 1 — dark green continent fragment, ~-68° from Earth center
+  const l1 = earthPt(-68, 0.87);
+  ctx.beginPath();
+  ctx.moveTo(l1.x, l1.y);
+  ctx.bezierCurveTo(l1.x + 48, l1.y - 28, l1.x + 95, l1.y +  2, l1.x + 74, l1.y + 52);
+  ctx.bezierCurveTo(l1.x + 46, l1.y + 72, l1.x - 12, l1.y + 50, l1.x - 24, l1.y + 18);
+  ctx.bezierCurveTo(l1.x - 30, l1.y -  2, l1.x -  6, l1.y - 14, l1.x,      l1.y);
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(58,85,34,0.70)';
+  ctx.fill();
+
+  // Land mass 2 — ochre/desert fragment, ~-46°
+  const l2 = earthPt(-46, 0.90);
+  ctx.beginPath();
+  ctx.moveTo(l2.x, l2.y);
+  ctx.bezierCurveTo(l2.x + 30, l2.y - 38, l2.x + 76, l2.y - 20, l2.x + 70, l2.y + 24);
+  ctx.bezierCurveTo(l2.x + 52, l2.y + 48, l2.x +  8, l2.y + 40, l2.x - 14, l2.y + 14);
+  ctx.bezierCurveTo(l2.x - 20, l2.y,      l2.x - 10, l2.y - 12, l2.x,      l2.y);
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(122,96,56,0.60)';
+  ctx.fill();
+
+  // Land mass 3 — small green island, ~-28°
+  const l3 = earthPt(-28, 0.91);
+  ctx.beginPath();
+  ctx.moveTo(l3.x, l3.y);
+  ctx.bezierCurveTo(l3.x + 22, l3.y - 20, l3.x + 48, l3.y - 12, l3.x + 40, l3.y + 24);
+  ctx.bezierCurveTo(l3.x + 24, l3.y + 36, l3.x -  4, l3.y + 22, l3.x -  8, l3.y +  4);
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(52,78,30,0.55)';
+  ctx.fill();
+
+  // Cloud wisps — elongated bezier stroke paths
+  ctx.lineCap  = 'round';
+  ctx.lineJoin = 'round';
+
+  const wisps = [
+    { ang: -72, r: 0.935, lw: 11, alpha: 0.13,
+      offsets: [[-58, 22, -18, 46, 28, 38, 72, 16]] },
+    { ang: -58, r: 0.945, lw:  6, alpha: 0.09,
+      offsets: [[-28, -6, 8, 14, 48,  6, 82, -2]] },
+    { ang: -42, r: 0.925, lw:  9, alpha: 0.11,
+      offsets: [[-44, 14, -4, 34, 42, 26, 78,  8]] },
+    { ang: -78, r: 0.950, lw:  7, alpha: 0.08,
+      offsets: [[  4, -4, 36,  9, 62,  3, 92, -6]] },
+    { ang: -25, r: 0.930, lw:  5, alpha: 0.07,
+      offsets: [[-18,  6, 14, 20, 38, 14, 56,  4]] },
+    { ang: -55, r: 0.960, lw:  8, alpha: 0.10,
+      offsets: [[-35, 30,  5, 48, 44, 40, 85, 18]] },
+  ];
+
+  for (const w of wisps) {
+    const wp = earthPt(w.ang, w.r);
+    ctx.strokeStyle = `rgba(228,242,255,${w.alpha})`;
+    ctx.lineWidth   = w.lw;
+    for (const [dx0, dy0, cx1, cy1, cx2, cy2, dx1, dy1] of w.offsets) {
+      ctx.beginPath();
+      ctx.moveTo(wp.x + dx0, wp.y + dy0);
+      ctx.bezierCurveTo(
+        wp.x + cx1, wp.y + cy1,
+        wp.x + cx2, wp.y + cy2,
+        wp.x + dx1, wp.y + dy1
+      );
+      ctx.stroke();
+    }
+  }
+
+  ctx.restore();
+
+  // 5. Atmospheric limb — radial gradient ring from r-5 to r+30
+  // Stop offsets relative to [r-5 .. r+30] span = 35px
+  const limbIn  = er -  5;
+  const limbOut = er + 30;
+  const lg = ctx.createRadialGradient(ecx, ecy, limbIn, ecx, ecy, limbOut);
+  lg.addColorStop(0,       'rgba(0,0,0,0)');
+  lg.addColorStop( 7 / 35, 'rgba(140,220,255,0.9)');   // r+2
+  lg.addColorStop(17 / 35, 'rgba(60,160,230,0.4)');    // r+12
+  lg.addColorStop(1,       'rgba(0,0,0,0)');
+  ctx.beginPath();
+  ctx.arc(ecx, ecy, limbOut, 0, Math.PI * 2);
+  ctx.fillStyle = lg;
+  ctx.fill();
+}
+
+document.addEventListener('DOMContentLoaded', drawScene);
+
+// ─── SocketIO ─────────────────────────────────────────────────────────────
+const socket = io(window.location.origin);
+
+let pktCount  = 0;
+let metSecs   = 0;
+const MAX_LOG = 8;
+
+let prev = { ax: null, ay: null, az: null, gx: null, gy: null, gz: null };
+
+// Link status
+socket.on('connect', () => {
+  document.getElementById('link-dot').className  = 'link-dot ok';
+  document.getElementById('link-text').textContent = 'LINK NOMINAL';
+  document.getElementById('link-text').className  = '';
+});
+
+socket.on('disconnect', () => {
+  document.getElementById('link-dot').className  = 'link-dot err';
+  document.getElementById('link-text').textContent = 'NO SIGNAL';
+  document.getElementById('link-text').className  = 'err';
+});
+
+// Telemetry
+socket.on('telemetry', (pkt) => {
+  pktCount++;
+
+  // Mode
+  applyMode(pkt.mode);
+
+  // Counters
+  document.getElementById('pkt-count-value').textContent = pktCount;
+  document.getElementById('seq-value').textContent       = pkt.seq;
+  document.getElementById('ts-value').textContent        = pkt.timestamp + 's';
+
+  // Fault flags
+  setFault('fault-dht', pkt.fault_dht);
+  setFault('fault-imu', pkt.fault_imu);
+  setFault('fault-wdg', pkt.fault_wdg);
+
+  // Watchdog
+  const wdgEl = document.getElementById('wdg-status');
+  if (pkt.fault_wdg) {
+    wdgEl.className   = 'wdg-box wdg-fault';
+    wdgEl.textContent = 'WATCHDOG FAULT';
+  } else {
+    wdgEl.className   = 'wdg-box wdg-ok';
+    wdgEl.textContent = 'ALL TASKS HEALTHY';
+  }
+
+  // Environmental
+  document.getElementById('temp-value').textContent = pkt.temperature.toFixed(1);
+  document.getElementById('hum-value').textContent  = pkt.humidity.toFixed(1);
+
+  // IMU with trend arrows
+  setImu('ax', pkt.accel_x);
+  setImu('ay', pkt.accel_y);
+  setImu('az', pkt.accel_z);
+  setImu('gx', pkt.gyro_x);
+  setImu('gy', pkt.gyro_y);
+  setImu('gz', pkt.gyro_z);
+
+  // CRC footer
+  document.getElementById('last-crc').textContent = pkt.crc;
+
+  // Packet log entry
+  addPktEntry(pkt);
+});
+
+// Command ACK
+socket.on('cmd_ack', (data) => {
+  addLogMsg(`[CMD] ${data.cmd} → ${data.status}${data.msg ? ': ' + data.msg : ''}`);
+});
+
+// ─── Helpers ──────────────────────────────────────────────────────────────
+function applyMode(mode) {
+  const led = document.getElementById('mode-led');
+  const txt = document.getElementById('mode-text');
+  const btn = document.getElementById('btn-nom');
+  led.style.boxShadow = '';
+  btn.classList.remove('active');
+  switch (mode) {
+    case 'NOMINAL':
+      led.style.background = '#00cc54';
+      led.style.boxShadow  = '0 0 6px #00cc54';
+      txt.style.color      = '#d0eedd';
+      btn.classList.add('active');
+      break;
+    case 'SAFE':
+      led.style.background = '#c89400';
+      txt.style.color      = '#eddca0';
+      break;
+    case 'DIAGNOSTIC':
+      led.style.background = '#00a4b8';
+      led.style.boxShadow  = '0 0 5px #00a4b8';
+      txt.style.color      = '#a0dce8';
+      break;
+    default:
+      led.style.background = '#808080';
+      txt.style.color      = '#909090';
+  }
+  txt.textContent = mode;
+}
+
+function setFault(id, active) {
+  const el = document.getElementById(id);
+  el.className   = 'fault-badge ' + (active ? 'err' : 'ok');
+  el.textContent = active ? 'ERR' : 'CLR';
+}
+
+function setImu(key, val) {
+  const p = prev[key];
+  const diff = (p !== null) ? (val - p) : 0;
+  let arrow = '→', cls = 'trend-st';
+  if (p !== null) {
+    if (diff >  0.015) { arrow = '↑'; cls = 'trend-up'; }
+    if (diff < -0.015) { arrow = '↓'; cls = 'trend-dn'; }
+  }
+  document.getElementById(key + '-val').textContent   = val.toFixed(2);
+  const tEl = document.getElementById(key + '-trend');
+  tEl.textContent = arrow;
+  tEl.className   = 'trend ' + cls;
+  prev[key] = val;
+}
+
+function addPktEntry(pkt) {
+  const log = document.getElementById('pkt-log');
+  const div = document.createElement('div');
+  div.className = 'pkt-entry';
+  const modeShort = pkt.mode.substring(0, 3);
+  div.innerHTML =
+    `<div class="pkt-header">` +
+      `<span class="pkt-seq">seq=${pkt.seq}</span>` +
+      ` <span class="pkt-ts">ts=${pkt.timestamp}s</span>` +
+      ` <span class="pkt-temp">T=${pkt.temperature}°C</span>` +
+      ` <span class="pkt-hum">H=${pkt.humidity}%</span>` +
+      ` <span class="pkt-mode">m=${modeShort}</span>` +
+    `</div>` +
+    `<div class="pkt-sep"></div>` +
+    `<div class="pkt-hex">${pkt.raw_hex}</div>`;
+  log.insertBefore(div, log.firstChild);
+  while (log.children.length > MAX_LOG) log.removeChild(log.lastChild);
+}
+
+function addLogMsg(msg) {
+  const log = document.getElementById('pkt-log');
+  const div = document.createElement('div');
+  div.className   = 'log-msg';
+  div.textContent = msg;
+  log.insertBefore(div, log.firstChild);
+  while (log.children.length > MAX_LOG) log.removeChild(log.lastChild);
+}
+
+function sendCmd(cmd) {
+  socket.emit('command', { cmd: cmd });
+}
+
+// ─── MET counter ──────────────────────────────────────────────────────────
+setInterval(() => {
+  metSecs++;
+  const h = Math.floor(metSecs / 3600);
+  const m = Math.floor((metSecs % 3600) / 60);
+  const s = metSecs % 60;
+  document.getElementById('met-value').textContent =
+    String(h).padStart(2, '0') + ':' +
+    String(m).padStart(2, '0') + ':' +
+    String(s).padStart(2, '0');
+}, 1000);
+</script>
+</body>
+</html>
